@@ -1,5 +1,7 @@
 # Immutable Diff
 
+*Forked to add support for Records in ImmutableJS 4.x.x*
+
 Create RFC 6902 style patches between Immutable.JS data structures, such as `Maps`, `Lists`, and `Sets`.
 
 ## Getting Started
