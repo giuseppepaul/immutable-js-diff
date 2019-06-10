@@ -8,7 +8,21 @@ var concatPath = path.concat,
                   escape = path.escape,
                   op = utils.op,
                   isMap = utils.isMap,
-                  isIndexed = utils.isIndexed;
+                  isIndexed = utils.isIndexed,
+                  isRecord = utils.isRecord;
+
+var recordDiff = function(a, b, p) {
+  var ops = [];
+  var path = p || '';
+
+  if(Immutable.is(a, b) || (a == b == null)){ return ops; }
+
+  const aMap = a.toSeq().toMap();
+  const bMap = b.toSeq().toMap();
+  ops = ops.concat(mapDiff(aMap, bMap, path));
+
+  return ops;
+};
 
 var mapDiff = function(a, b, p){
   var ops = [];
@@ -21,9 +35,13 @@ var mapDiff = function(a, b, p){
   var removeKey = null
 
   if(a.forEach){
+
     a.forEach(function(aValue, aKey){
       if(b.has(aKey)){
-        if(isMap(aValue) && isMap(b.get(aKey))){
+        if(isRecord(aValue) && isRecord(b.get(aKey))){
+          ops = ops.concat(recordDiff(aValue, b.get(aKey), concatPath(path, escape(aKey))));
+        }
+        else if(isMap(aValue) && isMap(b.get(aKey))){
           ops = ops.concat(mapDiff(aValue, b.get(aKey), concatPath(path, escape(aKey))));
         }
         else if(isIndexed(b.get(aKey)) && isIndexed(aValue)){
@@ -73,7 +91,11 @@ var sequenceDiff = function (a, b, p) {
   lcsDiff.forEach(function (diff) {
     if(diff.op === '='){ pathIndex++; }
     else if(diff.op === '!='){
-      if(isMap(diff.val) && isMap(diff.newVal)){
+      if (isRecord(diff.val) && isRecord(diff.newVal)){
+        var recordDiffs = recordDiff(diff.val, diff.newVal, concatPath(path, pathIndex));
+        ops = ops.concat(recordDiffs);
+      }
+      else if(isMap(diff.val) && isMap(diff.newVal)){
         var mapDiffs = mapDiff(diff.val, diff.newVal, concatPath(path, pathIndex));
         ops = ops.concat(mapDiffs);
       }
@@ -105,6 +127,9 @@ var diff = function(a, b, p){
   if(a != b && (a == null || b == null)){ return Immutable.fromJS([op('replace', '/', b)]); }
   if(isIndexed(a) && isIndexed(b)){
     return Immutable.fromJS(sequenceDiff(a, b));
+  }
+  else if(isRecord(a) && isRecord(b)){
+    return Immutable.fromJS(recordDiff(a, b));
   }
   else if(isMap(a) && isMap(b)){
     return Immutable.fromJS(mapDiff(a, b));
